@@ -1,12 +1,13 @@
 # Imports (standard library)
 import json
+import pprint
 
 # Imports (3rd-party)
 import websocket
 
 # Imports (local application)
 from constants import ACTION
-from game_state import GameState
+from game_state import *
 
 
 class HanabiClient:
@@ -72,7 +73,7 @@ class HanabiClient:
             return
 
         if command in self.commandHandlers:
-            print('debug: got command "' + command + '"')
+            # print('debug: got command "' + command + '"')
             try:
                 self.commandHandlers[command](data)
             except Exception as e:
@@ -80,7 +81,8 @@ class HanabiClient:
                       e)
                 return
         else:
-            print('debug: ignoring command "' + command + '"')
+            pass
+            # print('debug: ignoring command "' + command + '"')
 
     def websocket_error(self, ws, error):
         print('Encountered a WebSocket error:', error)
@@ -188,21 +190,12 @@ class HanabiClient:
         # at the table
 
         # Make a new game state and store it on the "games" dictionary
-        state = GameState()
+        state = HleGameState(data['names'], self.username, True)
         self.games[data['tableID']] = state
 
-        state.players = data['names']
-
-        # Find our index
-        for i in range(len(state.players)):
-            player_name = state.players[i]
-            if player_name == self.username:
-                state.our_index = i
-                break
-
-        # Initialize the hands for each player (an array of cards)
-        for i in range(len(state.players)):
-            state.hands.append([])
+        # # Initialize the hands for each player (an array of cards)
+        # for i in range(len(state.players)):
+        #     state.hands.append([])
 
         # Initialize the play stacks
         '''
@@ -212,8 +205,8 @@ class HanabiClient:
         file in order to determine the correct amount of suits
         https://raw.githubusercontent.com/Zamiell/hanabi-live/master/public/js/src/data/variants.json
         '''
-        for i in range(5):
-            state.play_stacks.append([])
+        # for i in range(5):
+        #     state.play_stacks.append([])
 
         # At this point, the JavaScript client would have enough information to
         # load and display the game UI; for our purposes, we do not need to
@@ -235,50 +228,48 @@ class HanabiClient:
             self.handle_action(action, data['tableID'])
 
     def handle_action(self, data, table_id):
-        print('debug: got a game action of "' + data['type'] + '" for table ' +
-              str(table_id))
+        # print('debug: got a game action of "' + data['type'] + '" for table ' +
+        #       str(table_id))
+        if data['type'] == 'text':
+            return
+
+        print('-------------begin: handle_action:-------------')
+        pprint.pprint(data)
 
         # Local variables
         state = self.games[table_id]
 
         if data['type'] == 'draw':
             # Add the newly drawn card to the player's hand
-            hand = state.hands[data['who']]
-            hand.append({
-                'order': data['order'],
-                'suit': data['suit'],
-                'rank': data['rank'],
-            })
-
-        elif data['type'] == 'play':
+            state.draw(
+                data['who'], data['suit'], data['rank'], data['order']
+            )
+        elif data['type'] == 'play' or (data['type'] == 'discard' and data['failed']):
+            # success play, and failed play (encoded as discard)
             seat = data['which']['index']
             order = data['which']['order']
-            card = self.remove_card_from_hand(state, seat, order)
-            if card is not None:
-                # TODO Add the card to the play stacks
-                pass
-
+            color = data['which']['suit']
+            rank = data['which']['rank']
+            if data['type'] == 'play':
+                success = True
+            else:
+                success = False
+            state.play(seat, color, rank, order, success)
         elif data['type'] == 'discard':
             seat = data['which']['index']
             order = data['which']['order']
-            card = self.remove_card_from_hand(state, seat, order)
-            if card is not None:
-                # TODO Add the card to the play stacks
-                pass
-
-            # Discarding adds a clue
-            if not data['failed']:  # Misplays are represented as discards
-                state.clue_tokens += 1
-
+            color = data['which']['suit']
+            rank = data['which']['rank']
+            state.discard(seat, color, rank, order)
         elif data['type'] == 'clue':
-            # Each clue costs one clue token
-            state.clue_tokens -= 1
-
-            # TODO We might also want to update the state of cards that are
-            # "touched" by the clue
-
+            print(data)
+            # TODO!!!
+            state.hint()
         elif data['type'] == 'turn':
-            state.turn = data['num']
+            state.num_step = data['num']
+            print('#STEP: ', state.num_step, ', MY INDEX: ', state.my_index)
+
+        print('===============================================')
 
     def your_turn(self, data):
         # The "yourTurn" command is only sent when it is our turn
@@ -310,12 +301,12 @@ class HanabiClient:
         # https://github.com/Zamiell/hanabi-live/blob/master/src/command_action.go
 
         # Decide what to do
-        if state.clue_tokens > 0:
+        if state.hint_tokens > 0:
             # There is a clue available,
             # so give a rank clue to the next person's slot 1 card
 
             # Target the next player
-            target_index = state.our_index + 1
+            target_index = state.my_index + 1
             if target_index > len(state.players) - 1:
                 target_index = 0
 
@@ -327,18 +318,18 @@ class HanabiClient:
             self.send(
                 'action', {
                     'tableID': table_id,
-                    'type': ACTION.RANK_CLUE,
+                    'type': ACTION.COLOR_HINT,
                     'target': target_index,
-                    'value': slot_1_card['rank'],
+                    'value': slot_1_card.color,
                 })
         else:
             # There are no clues available, so discard our oldest card
-            oldest_card = state.hands[state.our_index][0]
+            oldest_card = state.hands[state.my_index][0]
             self.send(
                 'action', {
                     'tableID': table_id,
                     'type': ACTION.DISCARD,
-                    'target': oldest_card['order'],
+                    'target': oldest_card.order,
                 })
 
     # -----------
@@ -356,20 +347,22 @@ class HanabiClient:
         if not isinstance(data, dict):
             data = {}
         self.ws.send(command + ' ' + json.dumps(data))
-        print('debug: sent command "' + command + '"')
+        # print('debug: sent command "' + command + '"')
 
-    # "seat" is the index of the player
-    def remove_card_from_hand(self, state, seat, order):
-        hand = state.hands[seat]
-        card_index = -1
-        for i in range(len(hand)):
-            card = hand[i]
-            if card['order'] == order:
-                card_index = i
-        if card_index == -1:
-            print('error: unable to find card with order ' + str(order) + ' in'
-                  'the hand of player ' + str(seat))
-            return None
-        card = hand[card_index]
-        del hand[card_index]
-        return card
+    # # "seat" is the index of the player
+    # def remove_card_from_hand(self, state, seat, order):
+    #     hand = state.hands[seat]
+    #     card_index = -1
+    #     for i in range(len(hand)):
+    #         card = hand[i]
+    #         if card['order'] == order:
+    #             card_index = i
+    #     if card_index == -1:
+    #         print('error: unable to find card with order ' + str(order) + ' in'
+    #               'the hand of player ' + str(seat))
+    #         return None
+    #     card = hand[card_index]
+    #     print('>>>before pop?', len(state.hands[seat]))
+    #     hand.pop(card_index)
+    #     print('>>>after pop?', len(state.hands[seat]))
+    #     return card
