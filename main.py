@@ -11,6 +11,7 @@ if sys.version_info < (3, 0):
 
 # Imports (standard library)
 import os
+import argparse
 
 # Imports (3rd-party)
 import dotenv
@@ -21,7 +22,7 @@ from hanabi_client import HanabiClient
 
 
 # Authenticate, login to the Hanabi Live WebSocket server, and run forever
-def main():
+def main(model):
     # Load environment variables from the ".env" file
     dotenv.load_dotenv()
 
@@ -91,8 +92,11 @@ def main():
         print(resp.headers)
         sys.exit(1)
 
-    HanabiClient(ws_url, cookie)
+    HanabiClient(ws_url, cookie, model)
 
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser(description="")
+    parser.add_argument("--model", type=str, default="models/dev/model0.pthw")
+    args = parser.parse_args()
+    main(args.model)

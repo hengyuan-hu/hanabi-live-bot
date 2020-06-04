@@ -1,27 +1,13 @@
+import os
+import sys
+
+import numpy as np
+
+root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(os.path.join(root, 'build'))
+import py_hanabi_lib as hle
+
 from constants import *
-
-
-# # This is just a reference;
-# # for a fully-fleged bot, the game state would need to be more specific
-# # (e.g. a card object should contain the positive and negative hints that are
-# # "on" the card)
-# class GameState:
-#     replaying_past_actions = True
-#     hint_tokens = MAX_HINT_NUM
-#     players = []
-#     our_index = -1
-#     hands = []
-#     play_stacks = []
-#     discard_pile = []
-#     turn = -1
-
-
-class Knowledge:
-    def __init__(self, value_range):
-        # Value if hint directly provided the value, or -1 with no direct hint.
-        self.value = -1
-        # Knowledge from not-value hints.
-        self.value_plausible_ = [None for _ in range(value_range)]
 
 
 class Card:
@@ -29,34 +15,39 @@ class Card:
         if rank != -1:
             rank -= 1
         assert self.check_card(color, rank)
-
-        self.color = color
-        self.rank = rank
+        self.hle_card = hle.HanabiCard(color, rank)
         self.order = order
-
-        self.color_knowledge = Knowledge(NUM_COLOR)
-        self.rank_knowledge = Knowledge(NUM_RANK)
 
     def __repr__(self):
         return '%s%s' % ('RYGBPU'[self.color], '12345U'[self.rank])
+
+    @property
+    def color(self):
+        return self.hle_card.color()
+
+    @property
+    def rank(self):
+        return self.hle_card.rank()
 
     @staticmethod
     def check_card(color, rank):
         if color == -1 and rank == -1:
             return True
-        if color >= 0 and color < 5 and rank >=0 and rank < 5:
+        if color >= 0 and color < 5 and rank >= 0 and rank < 5:
             return True
 
     def is_valid(self):
-        return self.color >= 0 and self.rank >= 0
+        return self.hle_card.is_valid()
 
 
 class Hand:
-    def __init__(self):
-        self.cards = []
+    def __init__(self, hand_size, num_color, num_rank):
+        self.hand_size = hand_size
+        self.num_color = num_color
+        self.num_rank = num_rank
 
-    def __getitem__(self, index):
-        return self.cards[index]
+        self.hle_hand = hle.HanabiHand()
+        self.cards = []
 
     def __len__(self):
         return len(self.cards)
@@ -68,58 +59,73 @@ class Hand:
         return None
 
     def add_card(self, card):
-        assert len(self.cards) < HAND_SIZE
+        assert len(self.cards) < self.hand_size
         self.cards.append(card)
+        self.hle_hand.add_card(
+            card.hle_card, hle.CardKnowledge(self.num_color, self.num_rank)
+        )
 
     def remove_from_hand(self, order):
         to_remove = -1
         for i, card in enumerate(self.cards):
             if card.order == order:
+                assert to_remove == -1
                 to_remove = i
         assert to_remove >= 0 and to_remove < len(self.cards)
-        card = self.cards.pop(i)
+        card = self.cards.pop(to_remove)
+        self.hle_hand.remove_from_hand(to_remove, [])
         return card
 
 
 class FireworkPile:
-    def __init__(self):
-        self.fire_work = [0 for _ in range(NUM_COLOR)]
+    def __init__(self, num_color, num_rank):
+        self.num_color = num_color
+        self.num_rank = num_rank
+        self.firework = [0 for _ in range(num_color)]
 
     def add_to_pile(self, card):
-        assert card.color >= 0 and card.color < NUM_COLOR
-        assert card.rank >= 0 and card.color < NUM_RANK
+        assert card.color >= 0 and card.color < self.num_color
+        assert card.rank >= 0 and card.color < self.num_rank
 
-        assert self.fire_work[card.color] == card.rank
-        self.fire_work[card.color] += 1
-        assert self.fire_work[card.color] <= NUM_RANK
-        if self.fire_work[card.color] == NUM_RANK:
-            return 1   # get 1 hint token back
+        assert self.firework[card.color] == card.rank
+        self.firework[card.color] += 1
+        assert self.firework[card.color] <= self.num_color
+        if self.firework[card.color] == self.num_rank:
+            return 1  # get 1 hint token back
         else:
             return 0
 
     def get_score(self):
-        return sum(self.fire_work)
+        return sum(self.firework)
 
 
 class HleGameState:
     def __init__(self, players, my_name, verbose):
-        self.hint_tokens = MAX_HINT_NUM
-        self.life_tokens = MAX_LIFE_NUM
+        self.hle_game = hle.HanabiGame({'players': str(len(players))})
+
+        self.hint_tokens = self.hle_game.max_information_tokens()
+        self.life_tokens = self.hle_game.max_life_tokens()
+        self.deck_size = self.hle_game.max_deck_size()
         self.num_step = -1
         self.verbose = verbose
 
-        # print(players, my_name)
         self.num_player = len(players)
-        # for i, name in enumerate(players):
-        #     print(name)
-        #     if name == my_name:
-        #         self.my_index = i
         self.players = players
         self.my_index = [i for i, name in enumerate(players) if name == my_name][0]
 
-        self.hands = [Hand() for _ in range(self.num_player)]
-        self.firework_pile = FireworkPile()
+        self.hands = [
+            Hand(
+                self.hle_game.hand_size(),
+                self.hle_game.num_colors(),
+                self.hle_game.num_ranks(),
+            )
+            for _ in range(self.num_player)
+        ]
+        self.firework_pile = FireworkPile(
+            self.hle_game.num_colors(), self.hle_game.num_ranks()
+        )
         self.discard_pile = []
+        self.encoder = hle.ObservationEncoder(self.hle_game)
 
         print('init hle game state done')
 
@@ -127,45 +133,232 @@ class HleGameState:
 
     def draw(self, player, color, rank, order):
         if self.verbose:
-            print('player: %d draw a card: %s/%s at order: %s' % (player, color, rank, order))
+            print(
+                'player: %d draw a card: %s/%s at order: %s'
+                % (player, color, rank, order)
+            )
             print('before draw card: hand len is: ', len(self.hands[player]))
 
+        self.deck_size -= 1
         self.hands[player].add_card(Card(color, rank, order))
 
     def play(self, seat, color, rank, order, success):
         card = Card(color, rank, order)
         if self.verbose:
-            print('player %s try to play [%s] and %s' %
-                  (seat, card, 'success' if success else 'fail'))
-        self.hands[seat].remove_from_hand(order)
+            print(
+                'player %s try to play [%s] and %s'
+                % (seat, card, 'success' if success else 'fail')
+            )
+        removed = self.hands[seat].remove_from_hand(order)
+        assert removed.order == order
+
         if success:
             finish_color = self.firework_pile.add_to_pile(card)
             self.hint_tokens += finish_color
             if finish_color and self.verbose:
                 print('one color is finished, get back 1 hint token')
         else:
-            self.discard_pile.append(card)
+            self.discard_pile.append(card.hle_card)
 
     def discard(self, seat, color, rank, order):
-        assert self.hint_tokens < MAX_HINT_NUM
+        assert self.hint_tokens < self.hle_game.max_information_tokens()
         self.hint_tokens += 1
 
         card = Card(color, rank, order)
-        self.discard_pile.append(card)
+        removed = self.hands[seat].remove_from_hand(order)
+        assert removed.order == order
+        self.discard_pile.append(card.hle_card)
 
-    def hint(self):
+    def hint(self, giver, target, hint_type, hint_value, hinted_card_orders):
+        hint_type = ['color_hint', 'rank_hint'][hint_type]
+        if hint_type == 'rank_hint':
+            hint_value -= 1
+        # print('>>>> hint type:', hint_type, ', hint value:', hint_value)
         assert self.hint_tokens > 0
         self.hint_tokens -= 1
 
+        assert giver != target
+        hand = self.hands[target]
+        knowledge = hand.hle_hand.knowledge_()
+        hinted_count = 0
+        for i, card in enumerate(hand.cards):
+            # knowledge[i] = knowledge[i]owledge[i]
+            # print('@@@', i, card.order, hinted_card_orders)
+            mismatch = False
+
+            if card.order in hinted_card_orders:
+                hinted_count += 1
+                if hint_type == 'color_hint':
+                    print('set color can be %d, %d' % (i, hint_value))
+                    knowledge[i].apply_is_color_hint(hint_value)
+                    if card.is_valid() and card.color != hint_value:
+                        mismatch = 1  # assert card.color == hint_value
+                else:
+                    knowledge[i].apply_is_rank_hint(hint_value)
+                    if card.is_valid() and card.rank != hint_value:
+                        mismatch = 2  # assert card.color != hint_value
+            else:
+                if hint_type == 'color_hint':
+                    print('set color can NOT be %d, %d' % (i, hint_value))
+                    knowledge[i].apply_is_not_color_hint(hint_value)
+                    if card.is_valid() and card.color == hint_value:
+                        mismatch = 3  # assert card.value = hint_value
+                else:
+                    knowledge[i].apply_is_not_rank_hint(hint_value)
+                    if card.is_valid() and card.rank == hint_value:
+                        mismatch = 4  # assert card.value != hint_value
+
+            if mismatch:
+                print('ERROR: MISMATCH, type %d' % mismatch)
+                print('card %d, order %d, %s' %
+                      (i, hand.cards[i].order, hand.cards[i].hle_card.to_string()))
+                print('%d: knowledge %s' % (i, knowledge[i].to_string()))
+                assert False
+
+        assert hinted_count == len(hinted_card_orders)
+
+    def get_observation(self):
+        hands = [hand.hle_hand for hand in self.hands]
+        legal_moves = self.get_legal_moves()
+        if self.verbose:
+            print('Legal Moves:')
+            for m in legal_moves:
+                print('\t', m.to_string())
+        obs = hle.HanabiObservation(
+            self.current_player(),
+            self.my_index,
+            hands,
+            self.discard_pile,
+            self.firework_pile.firework,
+            self.deck_size,
+            self.hint_tokens,
+            self.life_tokens,
+            legal_moves,
+            self.hle_game,
+        )
+        return obs
+
+    def print_observation(self, vec):
+        def print_hand(hand):
+            for i in range(5):
+                card = hand[i * 25 : (i + 1) * 25]
+                print('card: %d, sum %d, argmax %d' % (i, sum(card), np.argmax(card)))
+
+        def print_knowledge(kn):
+            for i in range(5):
+                card = kn[i*35 : i*35+25]
+                color = kn[i*35+25:i*35+30]
+                rank = kn[i*35+30:i*35+35]
+                # print('card: %d, sum %d, argmax %d', (i, sum(card), np.argmax(card)))
+                print('*****')
+                card_print = []
+                for i in range(5):
+                    c = ','.join([str(i)[:5] for i in card[5*i:5*(i+1)]])
+                    card_print.append(c)
+                print(card_print)
+                print(color)
+                print(rank)
+
+        print('--my hand--')
+        print_hand(vec[:125])
+        print('--your hand--')
+        print_hand(vec[125:250])
+        print('--hand info--')
+        print(vec[250:252])
+        print('--deck--: sum: %d' % sum(vec[252:292]))
+        print(vec[252:292])
+        print('--firework--')
+        print(vec[252:317])
+        print('--info--: sum %d' % sum(vec[317:325]))
+        print(vec[317:325])
+        print('--life--: sum %d' % sum(vec[325:328]))
+        print(vec[325:328])
+        print('--discard--')
+        for i in range(5):
+            print(vec[328+10*i : 328+10*(i+1)])
+        print('--last action--')
+        print(vec[378:433])
+        print('--card knowledge--')
+        print('--my knowledge--')
+        print_knowledge(vec[433:433+175])
+        print('--your knowledge--')
+        print_knowledge(vec[433+175:])
+
+    def get_observation_in_vector(self):
+        obs = self.get_observation()
+        vec = self.encoder.encode(obs, False, [], False, [], [], True)
+        self.print_observation(vec)
+        return vec
+
+    def get_legal_moves_in_vector(self):
+        moves = self.get_legal_moves()
+        legal_moves = [0 for _ in range(self.hle_game.max_moves() + 1)]
+        for m in moves:
+            uid = self.hle_game.get_move_uid(m)
+            legal_moves[uid] = 1
+
+        if self.num_player == 2:
+            assert len(legal_moves) == 21
+        return legal_moves
+
+    def convert_move(self, hle_move):
+        type_map = {
+            hle.MoveType.Play: ACTION.PLAY,
+            hle.MoveType.Discard: ACTION.DISCARD,
+            hle.MoveType.RevealColor: ACTION.COLOR_HINT,
+            hle.MoveType.RevealRank: ACTION.RANK_HINT,
+        }
+
+        if hle_move.move_type() in [hle.MoveType.Play, hle.MoveType.Discard]:
+            card_idx = hle_move.card_index()
+            assert card_idx >= 0 and card_idx < len(self.hands[self.my_index])
+            # for c in self.hands[self.my_index].cards:
+            #     print('>>card', c.order)
+            card_order = self.hands[self.my_index].cards[card_idx].order
+            return {
+                'type': type_map[hle_move.move_type()],
+                'target': card_order,
+            }
+
+        target_idx = (self.my_index + hle_move.target_offset()) % self.num_player
+        if hle_move.move_type() == hle.MoveType.RevealColor:
+            value = hle_move.color()
+            assert value >= 0 and value < self.hle_game.num_colors()
+        else:
+            value = hle_move.rank()
+            assert value >= 0 and value < self.hle_game.num_ranks()
+            value += 1  # hanabi-live is 1 indexed for rank
+
+        return {
+            'type': type_map[hle_move.move_type()],
+            'target': target_idx,
+            'value': value,
+        }
+
     ############### helper functions
-    def _is_my_turn(self):
-        pass
+    def current_player(self):
+        return self.num_step % self.num_player
 
-    # def remove_from_hand(self, seat, order):
-    #     pass
+    def is_my_turn(self):
+        return self.current_player() == self.my_index
 
-    # def add_to_firework(self, card):
-    #     pass
+    def get_legal_moves(self):
+        moves = []
+        if self.hint_tokens < self.hle_game.max_information_tokens():
+            for i in range(len(self.hands[self.my_index])):
+                moves.append(hle.HanabiMove(hle.MoveType.Discard, i, 1, -1, -1))
 
-    # def add_to_discard(self, card):
-    #     pass
+        for i in range(len(self.hands[self.my_index])):
+            moves.append(hle.HanabiMove(hle.MoveType.Play, i, 1, -1, -1))
+
+        possible_hint_color = []
+        possible_hint_rank = []
+        for card in self.hands[1 - self.my_index].cards:
+            if card.color not in possible_hint_color:
+                possible_hint_color.append(card.color)
+                moves.append(hle.HanabiMove(hle.MoveType.RevealColor, -1, 1, card.color, -1))
+            if card.rank not in possible_hint_rank:
+                possible_hint_rank.append(card.rank)
+                moves.append(hle.HanabiMove(hle.MoveType.RevealRank, -1, 1, -1, card.rank))
+
+        return moves

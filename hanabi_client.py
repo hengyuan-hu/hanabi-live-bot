@@ -1,23 +1,35 @@
 # Imports (standard library)
+import os
+import sys
 import json
 import pprint
 
 # Imports (3rd-party)
 import websocket
+import torch
 
 # Imports (local application)
 from constants import ACTION
 from game_state import *
 
+root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(os.path.join(root, 'pyhanabi'))
+import r2d2
+from utils import load_agent
+
 
 class HanabiClient:
-    def __init__(self, url, cookie):
+    def __init__(self, url, cookie, model_path):
         # Initialize all class variables
         self.commandHandlers = {}
         self.tables = {}
         self.username = ''
         self.ws = None
         self.games = {}
+
+        # model loading and related
+        self.agent, _ = load_agent(model_path, {"device": "cpu"})
+        self.rnn_hid = self.agent.get_h0(1)
 
         # Initialize the Hanabi Live command handlers (for the lobby)
         self.commandHandlers['welcome'] = self.welcome
@@ -193,6 +205,10 @@ class HanabiClient:
         state = HleGameState(data['names'], self.username, True)
         self.games[data['tableID']] = state
 
+        print('>>>>>>> init called, set rnn hid = 0')
+        self.rnn_hid = self.agent.get_h0(1)
+        print('<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<')
+
         # # Initialize the hands for each player (an array of cards)
         # for i in range(len(state.players)):
         #     state.hands.append([])
@@ -262,9 +278,12 @@ class HanabiClient:
             rank = data['which']['rank']
             state.discard(seat, color, rank, order)
         elif data['type'] == 'clue':
-            print(data)
-            # TODO!!!
-            state.hint()
+            giver = data['giver']
+            target = data['target']
+            hint_type = data['clue']['type']
+            hint_value = data['clue']['value']
+            hinted_card_orders = data['list']
+            state.hint(giver, target, hint_type, hint_value, hinted_card_orders)
         elif data['type'] == 'turn':
             state.num_step = data['num']
             print('#STEP: ', state.num_step, ', MY INDEX: ', state.my_index)
@@ -299,38 +318,24 @@ class HanabiClient:
 
         # The server expects to be told about actions in the following format:
         # https://github.com/Zamiell/hanabi-live/blob/master/src/command_action.go
+        obs_vec = state.get_observation_in_vector()
+        legal_move_vec = state.get_legal_moves_in_vector()
+        obs = torch.tensor(obs_vec, dtype=torch.float32)
+        priv_s = obs[125:].unsqueeze(0)
+        publ_s = obs[250:].unsqueeze(0)
+        legal_move = torch.tensor(legal_move_vec, dtype=torch.float32)
 
-        # Decide what to do
-        if state.hint_tokens > 0:
-            # There is a clue available,
-            # so give a rank clue to the next person's slot 1 card
+        action, self.rnn_hid, _ = self.agent.greedy_act(
+            priv_s, publ_s, legal_move, self.rnn_hid
+        )
+        action_uid = int(action.item())
+        move = state.hle_game.get_move(action_uid)
+        print("$$$ MODEL ACTION: UID: %d, %s $$$" % (action_uid, move.to_string()))
 
-            # Target the next player
-            target_index = state.my_index + 1
-            if target_index > len(state.players) - 1:
-                target_index = 0
-
-            # Cards are added oldest to newest,
-            # so "slot 1" is the final element in the list
-            target_hand = state.hands[target_index]
-            slot_1_card = target_hand[-1]
-
-            self.send(
-                'action', {
-                    'tableID': table_id,
-                    'type': ACTION.COLOR_HINT,
-                    'target': target_index,
-                    'value': slot_1_card.color,
-                })
-        else:
-            # There are no clues available, so discard our oldest card
-            oldest_card = state.hands[state.my_index][0]
-            self.send(
-                'action', {
-                    'tableID': table_id,
-                    'type': ACTION.DISCARD,
-                    'target': oldest_card.order,
-                })
+        move_json = state.convert_move(move)
+        move_json['tableID'] = table_id
+        print('$$$ json move: %s $$$' % move_json)
+        self.send('action', move_json)
 
     # -----------
     # Subroutines

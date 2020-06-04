@@ -9,10 +9,10 @@ class ACTION():
     RANK_HINT = 3
 
 
-# The maximum amount of hints
-# (and the amount of hints that players start the game with)
-MAX_HINT_NUM = 8
-MAX_LIFE_NUM = 3
-NUM_RANK = 5
-NUM_COLOR = 5
-HAND_SIZE = 5
+# # The maximum amount of hints
+# # (and the amount of hints that players start the game with)
+# MAX_HINT_NUM = 8
+# MAX_LIFE_NUM = 3
+# NUM_RANK = 5
+# NUM_COLOR = 5
+# HAND_SIZE = 5
