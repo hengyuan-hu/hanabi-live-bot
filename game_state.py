@@ -158,6 +158,7 @@ class HleGameState:
             if finish_color and self.verbose:
                 print('one color is finished, get back 1 hint token')
         else:
+            self.life_tokens -= 1
             self.discard_pile.append(card.hle_card)
 
     def discard(self, seat, color, rank, order):
@@ -189,7 +190,6 @@ class HleGameState:
             if card.order in hinted_card_orders:
                 hinted_count += 1
                 if hint_type == 'color_hint':
-                    print('set color can be %d, %d' % (i, hint_value))
                     knowledge[i].apply_is_color_hint(hint_value)
                     if card.is_valid() and card.color != hint_value:
                         mismatch = 1  # assert card.color == hint_value
@@ -199,7 +199,6 @@ class HleGameState:
                         mismatch = 2  # assert card.color != hint_value
             else:
                 if hint_type == 'color_hint':
-                    print('set color can NOT be %d, %d' % (i, hint_value))
                     knowledge[i].apply_is_not_color_hint(hint_value)
                     if card.is_valid() and card.color == hint_value:
                         mismatch = 3  # assert card.value = hint_value
@@ -266,18 +265,19 @@ class HleGameState:
         print('--hand info--')
         print(vec[250:252])
         print('--deck--: sum: %d' % sum(vec[252:292]))
-        print(vec[252:292])
-        print('--firework--')
-        print(vec[252:317])
+        print([int(x) for x in vec[252:292]])
+        print('--firework--: sum: %d' % sum(vec[292:317]))
+        for i in range(5):
+            print([int(x) for x in vec[292+5*i:292+5*(i+1)]])
         print('--info--: sum %d' % sum(vec[317:325]))
-        print(vec[317:325])
+        print([int(x) for x in vec[317:325]])
         print('--life--: sum %d' % sum(vec[325:328]))
-        print(vec[325:328])
+        print([int(x) for x in vec[325:328]])
         print('--discard--')
         for i in range(5):
-            print(vec[328+10*i : 328+10*(i+1)])
+            print([int(x) for x in vec[328+10*i:328+10*(i+1)]])
         print('--last action--')
-        print(vec[378:433])
+        print(sum(vec[378:433]))
         print('--card knowledge--')
         print('--my knowledge--')
         print_knowledge(vec[433:433+175])
@@ -351,14 +351,18 @@ class HleGameState:
         for i in range(len(self.hands[self.my_index])):
             moves.append(hle.HanabiMove(hle.MoveType.Play, i, 1, -1, -1))
 
-        possible_hint_color = []
-        possible_hint_rank = []
-        for card in self.hands[1 - self.my_index].cards:
-            if card.color not in possible_hint_color:
-                possible_hint_color.append(card.color)
-                moves.append(hle.HanabiMove(hle.MoveType.RevealColor, -1, 1, card.color, -1))
-            if card.rank not in possible_hint_rank:
-                possible_hint_rank.append(card.rank)
-                moves.append(hle.HanabiMove(hle.MoveType.RevealRank, -1, 1, -1, card.rank))
+        if self.hint_tokens > 0:
+            possible_hint_color = []
+            possible_hint_rank = []
+            for card in self.hands[1 - self.my_index].cards:
+                if card.color not in possible_hint_color:
+                    possible_hint_color.append(card.color)
+                    moves.append(hle.HanabiMove(hle.MoveType.RevealColor, -1, 1, card.color, -1))
+                if card.rank not in possible_hint_rank:
+                    possible_hint_rank.append(card.rank)
+                    moves.append(hle.HanabiMove(hle.MoveType.RevealRank, -1, 1, -1, card.rank))
 
         return moves
+
+    def get_score(self):
+        return self.firework_pile.get_score()

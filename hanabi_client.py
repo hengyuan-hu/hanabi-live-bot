@@ -287,7 +287,9 @@ class HanabiClient:
         elif data['type'] == 'turn':
             state.num_step = data['num']
             print('#STEP: ', state.num_step, ', MY INDEX: ', state.my_index)
-
+        elif data['type'] == 'status':
+            assert state.get_score() == data['score']
+            assert state.hint_tokens == data['clues']
         print('===============================================')
 
     def your_turn(self, data):
@@ -353,21 +355,3 @@ class HanabiClient:
             data = {}
         self.ws.send(command + ' ' + json.dumps(data))
         # print('debug: sent command "' + command + '"')
-
-    # # "seat" is the index of the player
-    # def remove_card_from_hand(self, state, seat, order):
-    #     hand = state.hands[seat]
-    #     card_index = -1
-    #     for i in range(len(hand)):
-    #         card = hand[i]
-    #         if card['order'] == order:
-    #             card_index = i
-    #     if card_index == -1:
-    #         print('error: unable to find card with order ' + str(order) + ' in'
-    #               'the hand of player ' + str(seat))
-    #         return None
-    #     card = hand[card_index]
-    #     print('>>>before pop?', len(state.hands[seat]))
-    #     hand.pop(card_index)
-    #     print('>>>after pop?', len(state.hands[seat]))
-    #     return card
