@@ -10,6 +10,54 @@ import py_hanabi_lib as hle
 from constants import *
 
 
+def print_observation(vec):
+    def print_hand(hand):
+        for i in range(5):
+            card = hand[i * 25 : (i + 1) * 25]
+            print('card: %d, sum %d, argmax %d' % (i, sum(card), np.argmax(card)))
+
+    def print_knowledge(kn):
+        for i in range(5):
+            card = kn[i*35 : i*35+25]
+            color = kn[i*35+25:i*35+30]
+            rank = kn[i*35+30:i*35+35]
+            # print('card: %d, sum %d, argmax %d', (i, sum(card), np.argmax(card)))
+            print('*****')
+            card_print = []
+            for i in range(5):
+                c = ','.join([str(i)[:5] for i in card[5*i:5*(i+1)]])
+                card_print.append(c)
+            print(card_print)
+            print(color)
+            print(rank)
+
+    print('--my hand--')
+    print_hand(vec[:125])
+    print('--your hand--')
+    print_hand(vec[125:250])
+    print('--hand info--')
+    print(vec[250:252])
+    print('--deck--: sum: %d' % sum(vec[252:292]))
+    print([int(x) for x in vec[252:292]])
+    print('--firework--: sum: %d' % sum(vec[292:317]))
+    for i in range(5):
+        print([int(x) for x in vec[292+5*i:292+5*(i+1)]])
+    print('--info--: sum %d' % sum(vec[317:325]))
+    print([int(x) for x in vec[317:325]])
+    print('--life--: sum %d' % sum(vec[325:328]))
+    print([int(x) for x in vec[325:328]])
+    print('--discard--')
+    for i in range(5):
+        print([int(x) for x in vec[328+10*i:328+10*(i+1)]])
+    print('--last action--')
+    print(sum(vec[378:433]))
+    print('--card knowledge--')
+    print('--my knowledge--')
+    print_knowledge(vec[433:433+175])
+    print('--your knowledge--')
+    print_knowledge(vec[433+175:])
+
+
 class Card:
     def __init__(self, color, rank, order):
         if rank != -1:
@@ -106,7 +154,7 @@ class HleGameState:
         self.hint_tokens = self.hle_game.max_information_tokens()
         self.life_tokens = self.hle_game.max_life_tokens()
         self.deck_size = self.hle_game.max_deck_size()
-        self.num_step = -1
+        self.num_step = 0
         self.verbose = verbose
 
         self.num_player = len(players)
@@ -161,6 +209,8 @@ class HleGameState:
             self.life_tokens -= 1
             self.discard_pile.append(card.hle_card)
 
+        self.num_step += 1
+
     def discard(self, seat, color, rank, order):
         assert self.hint_tokens < self.hle_game.max_information_tokens()
         self.hint_tokens += 1
@@ -169,6 +219,8 @@ class HleGameState:
         removed = self.hands[seat].remove_from_hand(order)
         assert removed.order == order
         self.discard_pile.append(card.hle_card)
+
+        self.num_step += 1
 
     def hint(self, giver, target, hint_type, hint_value, hinted_card_orders):
         hint_type = ['color_hint', 'rank_hint'][hint_type]
@@ -215,11 +267,12 @@ class HleGameState:
                 assert False
 
         assert hinted_count == len(hinted_card_orders)
+        self.num_step += 1
 
     def get_observation(self):
         hands = [hand.hle_hand for hand in self.hands]
         legal_moves = self.get_legal_moves()
-        if self.verbose:
+        if self.verbose and self.is_my_turn():
             print('Legal Moves:')
             for m in legal_moves:
                 print('\t', m.to_string())
@@ -237,68 +290,24 @@ class HleGameState:
         )
         return obs
 
-    def print_observation(self, vec):
-        def print_hand(hand):
-            for i in range(5):
-                card = hand[i * 25 : (i + 1) * 25]
-                print('card: %d, sum %d, argmax %d' % (i, sum(card), np.argmax(card)))
-
-        def print_knowledge(kn):
-            for i in range(5):
-                card = kn[i*35 : i*35+25]
-                color = kn[i*35+25:i*35+30]
-                rank = kn[i*35+30:i*35+35]
-                # print('card: %d, sum %d, argmax %d', (i, sum(card), np.argmax(card)))
-                print('*****')
-                card_print = []
-                for i in range(5):
-                    c = ','.join([str(i)[:5] for i in card[5*i:5*(i+1)]])
-                    card_print.append(c)
-                print(card_print)
-                print(color)
-                print(rank)
-
-        print('--my hand--')
-        print_hand(vec[:125])
-        print('--your hand--')
-        print_hand(vec[125:250])
-        print('--hand info--')
-        print(vec[250:252])
-        print('--deck--: sum: %d' % sum(vec[252:292]))
-        print([int(x) for x in vec[252:292]])
-        print('--firework--: sum: %d' % sum(vec[292:317]))
-        for i in range(5):
-            print([int(x) for x in vec[292+5*i:292+5*(i+1)]])
-        print('--info--: sum %d' % sum(vec[317:325]))
-        print([int(x) for x in vec[317:325]])
-        print('--life--: sum %d' % sum(vec[325:328]))
-        print([int(x) for x in vec[325:328]])
-        print('--discard--')
-        for i in range(5):
-            print([int(x) for x in vec[328+10*i:328+10*(i+1)]])
-        print('--last action--')
-        print(sum(vec[378:433]))
-        print('--card knowledge--')
-        print('--my knowledge--')
-        print_knowledge(vec[433:433+175])
-        print('--your knowledge--')
-        print_knowledge(vec[433+175:])
-
     def get_observation_in_vector(self):
         obs = self.get_observation()
         vec = self.encoder.encode(obs, False, [], False, [], [], True)
-        self.print_observation(vec)
+        # print_observation(vec)
         return vec
 
     def get_legal_moves_in_vector(self):
-        moves = self.get_legal_moves()
         legal_moves = [0 for _ in range(self.hle_game.max_moves() + 1)]
-        for m in moves:
-            uid = self.hle_game.get_move_uid(m)
-            legal_moves[uid] = 1
+        if self.is_my_turn():
+            moves = self.get_legal_moves()
+            for m in moves:
+                uid = self.hle_game.get_move_uid(m)
+                legal_moves[uid] = 1
 
-        if self.num_player == 2:
-            assert len(legal_moves) == 21
+            if self.num_player == 2:
+                assert len(legal_moves) == 21
+        else:
+            legal_moves[-1] = 1
         return legal_moves
 
     def convert_move(self, hle_move):
