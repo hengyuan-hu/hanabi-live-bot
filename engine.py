@@ -188,8 +188,10 @@ def run_game(deck_file, obs_file, agents, verbose):
         active_player = 1 - active_player
         if verbose:
             print("===================step %d done==================" % states[0].num_step)
-    print("final score: ", states[0].get_score())
-    return states[0].get_score()
+
+    score = states[0].get_score() if state0.life_tokens > 0 else 0
+    print("final score: ", score)
+    return score
 
 
 root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -198,20 +200,20 @@ import r2d2
 from utils import load_agent
 
 
-weight = '/private/home/hengyuan/HanabiModels/rl1_fix_o/HIDE_ACTION1_PRED0.25_MIN_T0.01_MAX_T0.1_SEEDb/model0.pthw'
+# weight = '/private/home/hengyuan/HanabiModels/rl1_fix_o/HIDE_ACTION1_PRED0.25_MIN_T0.01_MAX_T0.1_SEEDb/model0.pthw'
+weight = '/private/home/hengyuan/HanabiModels/br1_aux_big_cont/HIDE_ACTION1_RNN_HID_DIM768_ACT_BASE_EPS0.1_SEEDa/model0.pthw'
 
-
-seed = 8
-deck = '/private/home/hengyuan/NewHanabi/rl/pyhanabi/exps/play/deck_seed%d.txt' % seed
-ref = '/private/home/hengyuan/NewHanabi/rl/pyhanabi/exps/play/priv_s%d.pkl' % seed
-agent, _ = load_agent(weight, {"device": "cpu"})
-score = run_game(deck, ref, [agent, agent], False)
+# seed = 8
+# deck = '/private/home/hengyuan/NewHanabi/rl/pyhanabi/exps/play2/deck_seed%d.txt' % seed
+# ref = '/private/home/hengyuan/NewHanabi/rl/pyhanabi/exps/play2/priv_s%d.pkl' % seed
+# agent, _ = load_agent(weight, {"device": "cpu", "vdn": False})
+# score = run_game(deck, ref, [agent, agent], False)
 
 scores = []
 for seed in range(1, 101):
-    deck = '/private/home/hengyuan/NewHanabi/rl/pyhanabi/exps/play/deck_seed%d.txt' % seed
-    ref = '/private/home/hengyuan/NewHanabi/rl/pyhanabi/exps/play/priv_s%d.pkl' % seed
-    agent, _ = load_agent(weight, {"device": "cpu"})
+    deck = '/private/home/hengyuan/NewHanabi/rl/pyhanabi/exps/play2/deck_seed%d.txt' % seed
+    ref = '/private/home/hengyuan/NewHanabi/rl/pyhanabi/exps/play2/priv_s%d.pkl' % seed
+    agent, _ = load_agent(weight, {"device": "cpu", "vdn": False})
     score = run_game(deck, ref, [agent, agent], False)
     print('pass, ', seed)
     scores.append(score)

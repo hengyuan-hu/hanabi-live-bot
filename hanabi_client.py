@@ -28,8 +28,9 @@ class HanabiClient:
         self.games = {}
 
         # model loading and related
-        self.agent, _ = load_agent(model_path, {"device": "cpu"})
-        self.rnn_hid = self.agent.get_h0(1)
+        self.agent, _ = load_agent(model_path, {"device": "cpu", "vdn": False})
+        self.rnn_hids = {}
+        self.next_moves = {}
 
         # Initialize the Hanabi Live command handlers (for the lobby)
         self.commandHandlers['welcome'] = self.welcome
@@ -205,8 +206,9 @@ class HanabiClient:
         state = HleGameState(data['names'], self.username, True)
         self.games[data['tableID']] = state
 
-        print('>>>>>>> init called, set rnn hid = 0')
-        self.rnn_hid = self.agent.get_h0(1)
+        print('>>>>> init for table %s called <<<<<' % data['tableID'])
+        self.rnn_hids[data['tableID']] = self.agent.get_h0(1)
+        self.next_moves[data['tableID']] = None
         print('<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<')
 
         # # Initialize the hands for each player (an array of cards)
@@ -244,8 +246,10 @@ class HanabiClient:
             self.handle_action(action, data['tableID'])
 
     def handle_action(self, data, table_id):
-        # print('debug: got a game action of "' + data['type'] + '" for table ' +
-        #       str(table_id))
+        """action comes in the order of:
+        [status, turn, action], [status, turn, action]...
+        """
+
         if data['type'] == 'text':
             return
 
@@ -255,7 +259,10 @@ class HanabiClient:
         # Local variables
         state = self.games[table_id]
 
-        if data['type'] == 'draw':
+        if data['type'] == 'status':
+            assert data['clues'] == state.hint_tokens
+            assert data['score'] == state.get_score()
+        elif data['type'] == 'draw':
             # Add the newly drawn card to the player's hand
             state.draw(
                 data['who'], data['suit'], data['rank'], data['order']
@@ -285,8 +292,31 @@ class HanabiClient:
             hinted_card_orders = data['list']
             state.hint(giver, target, hint_type, hint_value, hinted_card_orders)
         elif data['type'] == 'turn':
-            state.num_step = data['num']
-            print('#STEP: ', state.num_step, ', MY INDEX: ', state.my_index)
+            if data['who'] == -1:
+                return
+
+            assert state.num_step == data['num']
+            print('#STEP: %d, %d, my index: %d, my turn? %s'
+                  % (state.num_step, data['num'], state.my_index, state.is_my_turn()))
+            print('Bot observing')
+            obs_vec = state.get_observation_in_vector()
+            legal_move_vec = state.get_legal_moves_in_vector()
+            obs = torch.tensor(obs_vec, dtype=torch.float32)
+            priv_s = obs[125:].unsqueeze(0)
+            publ_s = obs[250:].unsqueeze(0)
+            legal_move = torch.tensor(legal_move_vec, dtype=torch.float32)
+
+            with torch.no_grad():
+                action, self.rnn_hids[table_id], _ = self.agent.greedy_act(
+                    priv_s, publ_s, legal_move, self.rnn_hids[table_id]
+                )
+            if state.is_my_turn():
+                assert self.next_moves[table_id] is None
+                action_uid = int(action.item())
+                move = state.hle_game.get_move(action_uid)
+                self.next_moves[table_id] = move
+            else:
+                self.next_moves[table_id] = None
         elif data['type'] == 'status':
             assert state.get_score() == data['score']
             assert state.hint_tokens == data['clues']
@@ -308,7 +338,9 @@ class HanabiClient:
         })
 
         # Delete the game state for the game to free up memory
-        del self.games[data['tableID']]
+        self.games.pop(data['tableID'])
+        self.rnn_hids.pop(data['tableID'])
+        self.next_moves.pop(data['tableID'])
 
     # ------------
     # AI functions
@@ -317,22 +349,8 @@ class HanabiClient:
     def decide_action(self, table_id):
         # Local variables
         state = self.games[table_id]
-
-        # The server expects to be told about actions in the following format:
-        # https://github.com/Zamiell/hanabi-live/blob/master/src/command_action.go
-        obs_vec = state.get_observation_in_vector()
-        legal_move_vec = state.get_legal_moves_in_vector()
-        obs = torch.tensor(obs_vec, dtype=torch.float32)
-        priv_s = obs[125:].unsqueeze(0)
-        publ_s = obs[250:].unsqueeze(0)
-        legal_move = torch.tensor(legal_move_vec, dtype=torch.float32)
-
-        action, self.rnn_hid, _ = self.agent.greedy_act(
-            priv_s, publ_s, legal_move, self.rnn_hid
-        )
-        action_uid = int(action.item())
-        move = state.hle_game.get_move(action_uid)
-        print("$$$ MODEL ACTION: UID: %d, %s $$$" % (action_uid, move.to_string()))
+        move = self.next_moves[table_id]
+        print("$$$ MODEL ACTION: %s $$$" % (move.to_string()))
 
         move_json = state.convert_move(move)
         move_json['tableID'] = table_id
