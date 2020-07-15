@@ -71,8 +71,8 @@ def main(name, model):
     resp = requests.post(
         url,
         {
-            'username': username,
-            'password': password,
+            'username': 'test-0',
+            'password': 'test-0',
             # This is normally the version of the JavaScript client,
             # but it will also accept "bot" as a valid version
             'version': 'bot',
@@ -103,7 +103,7 @@ models = {
     "Bot-Rank": "/private/home/hengyuan/HanabiModels/rl1_fix_o/HIDE_ACTION1_PRED0.25_MIN_T0.01_MAX_T0.1_SEEDb/model0.pthw",
     "Bot-BR": "/private/home/hengyuan/HanabiModels/br1_aux_big_cont/HIDE_ACTION1_RNN_HID_DIM768_ACT_\
 BASE_EPS0.1_SEEDa/model0.pthw",
-    "Bot-Color": "/private/home/hengyuan/HanabiModels/discard_oldest_1/HIDE_ACTION1_MIN_CR0.1_NUM_CR1_SEEDa/model0.pthw"
+    # "Bot-Discard": "/private/home/hengyuan/HanabiModels/discard_oldest_1/HIDE_ACTION1_MIN_CR0.1_NUM_CR1_SEEDa/model0.pthw"
 }
 
 

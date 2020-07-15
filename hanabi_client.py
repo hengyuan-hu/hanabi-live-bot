@@ -3,6 +3,9 @@ import os
 import sys
 import json
 import pprint
+import threading
+import time
+import random
 
 # Imports (3rd-party)
 import websocket
@@ -307,14 +310,21 @@ class HanabiClient:
             legal_move = torch.tensor(legal_move_vec, dtype=torch.float32)
 
             with torch.no_grad():
-                action, self.rnn_hids[table_id], _ = self.agent.greedy_act(
-                    priv_s, publ_s, legal_move, self.rnn_hids[table_id]
+                adv, self.rnn_hids[table_id], _ = self.agent.online_net.act(
+                    priv_s, publ_s, self.rnn_hids[table_id]
                 )
             if state.is_my_turn():
                 assert self.next_moves[table_id] is None
+                legal_adv = (1 + adv - adv.min()) * legal_move
+                action = legal_adv.argmax(1).detach()
                 action_uid = int(action.item())
                 move = state.hle_game.get_move(action_uid)
-                self.next_moves[table_id] = move
+
+                legal_adv = adv - (1 - legal_move) * 1e9
+                prob = torch.nn.functional.softmax(legal_adv * 5, 1)
+                logp = torch.nn.functional.log_softmax(legal_adv * 5, 1)
+                xent = -(prob * logp).sum().item()
+                self.next_moves[table_id] = (move, xent)
             else:
                 self.next_moves[table_id] = None
         elif data['type'] == 'status':
@@ -327,7 +337,10 @@ class HanabiClient:
         # (in the present, as opposed to recieving a "game_action" message
         # about a turn in the past)
         # Query the AI functions to see what to do
-        self.decide_action(data['tableID'])
+
+        th = threading.Thread(target=self.decide_action, args=(data['tableID'],))
+        th.start()
+        # self.decide_action(data['tableID'])
 
     def database_id(self, data):
         # Games are transformed into shared replays after they are copmleted
@@ -347,14 +360,15 @@ class HanabiClient:
     # ------------
 
     def decide_action(self, table_id):
-        # Local variables
         state = self.games[table_id]
-        move = self.next_moves[table_id]
+        move, xent = self.next_moves[table_id]
         print("$$$ MODEL ACTION: %s $$$" % (move.to_string()))
 
         move_json = state.convert_move(move)
         move_json['tableID'] = table_id
         print('$$$ json move: %s $$$' % move_json)
+        print('$$$Xent:', xent)
+        time.sleep(max(0, (xent - 1) / (2.9 - 1) * 10))  # ln(20) ~= 2.9
         self.send('action', move_json)
 
     # -----------
