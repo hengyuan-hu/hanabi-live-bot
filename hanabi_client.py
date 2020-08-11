@@ -18,11 +18,12 @@ from game_state import *
 root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(os.path.join(root, 'pyhanabi'))
 import r2d2
+import supervised_model
 from utils import load_agent
 
 
 class HanabiClient:
-    def __init__(self, url, cookie, model_path):
+    def __init__(self, url, cookie, model_path, rl):
         # Initialize all class variables
         self.commandHandlers = {}
         self.tables = {}
@@ -31,7 +32,12 @@ class HanabiClient:
         self.games = {}
 
         # model loading and related
-        self.agent, _ = load_agent(model_path, {"device": "cpu", "vdn": False})
+        self.rl = rl
+        if rl:
+            self.agent, _ = load_agent(model_path, {"device": "cpu", "vdn": False})
+        else:
+            self.agent = supervised_model.SupervisedAgent("cpu", 1024, 21, 1)
+            self.agent.load_state_dict(torch.load(model_path))
         self.rnn_hids = {}
         self.next_moves = {}
 
@@ -309,24 +315,39 @@ class HanabiClient:
             publ_s = obs[250:].unsqueeze(0)
             legal_move = torch.tensor(legal_move_vec, dtype=torch.float32)
 
-            with torch.no_grad():
-                adv, self.rnn_hids[table_id], _ = self.agent.online_net.act(
-                    priv_s, publ_s, self.rnn_hids[table_id]
-                )
-            if state.is_my_turn():
-                assert self.next_moves[table_id] is None
-                legal_adv = (1 + adv - adv.min()) * legal_move
-                action = legal_adv.argmax(1).detach()
-                action_uid = int(action.item())
-                move = state.hle_game.get_move(action_uid)
+            if self.rl:
+                with torch.no_grad():
+                    adv, self.rnn_hids[table_id], _ = self.agent.online_net.act(
+                        priv_s, publ_s, self.rnn_hids[table_id]
+                    )
+                if state.is_my_turn():
+                    assert self.next_moves[table_id] is None
+                    legal_adv = (1 + adv - adv.min()) * legal_move
+                    action = legal_adv.argmax(1).detach()
+                    action_uid = int(action.item())
+                    move = state.hle_game.get_move(action_uid)
 
-                legal_adv = adv - (1 - legal_move) * 1e9
-                prob = torch.nn.functional.softmax(legal_adv * 5, 1)
-                logp = torch.nn.functional.log_softmax(legal_adv * 5, 1)
-                xent = -(prob * logp).sum().item()
-                self.next_moves[table_id] = (move, xent)
+                    legal_adv = adv - (1 - legal_move) * 1e9
+                    prob = torch.nn.functional.softmax(legal_adv * 5, 1)
+                    logp = torch.nn.functional.log_softmax(legal_adv * 5, 1)
+                    xent = -(prob * logp).sum().item()
+                    self.next_moves[table_id] = (move, xent)
+                else:
+                    self.next_moves[table_id] = None
             else:
-                self.next_moves[table_id] = None
+                # clone bot
+                with torch.no_grad():
+                    logit, self.rnn_hids[table_id] = self.agent.forward(
+                        priv_s.unsqueeze(0), publ_s.unsqueeze(0), self.rnn_hids[table_id]
+                    )
+                if state.is_my_turn():
+                    logit = logit.squeeze()
+                    action = (logit - (1 - legal_move) * 1e9).argmax(0)
+                    action_uid = int(action.item())
+                    move = state.hle_game.get_move(action_uid)
+                    self.next_moves[table_id] = (move, 0)
+                else:
+                    self.next_moves[table_id] = None
         elif data['type'] == 'status':
             assert state.get_score() == data['score']
             assert state.hint_tokens == data['clues']
@@ -338,9 +359,9 @@ class HanabiClient:
         # about a turn in the past)
         # Query the AI functions to see what to do
 
-        th = threading.Thread(target=self.decide_action, args=(data['tableID'],))
-        th.start()
-        # self.decide_action(data['tableID'])
+        # th = threading.Thread(target=self.decide_action, args=(data['tableID'],))
+        # th.start()
+        self.decide_action(data['tableID'])
 
     def database_id(self, data):
         # Games are transformed into shared replays after they are copmleted
@@ -367,8 +388,9 @@ class HanabiClient:
         move_json = state.convert_move(move)
         move_json['tableID'] = table_id
         print('$$$ json move: %s $$$' % move_json)
-        print('$$$Xent:', xent)
-        time.sleep(max(0, (xent - 1) / (2.9 - 1) * 10))  # ln(20) ~= 2.9
+        if xent > 0:
+            print('$$$Xent:', xent)
+            time.sleep(max(0, (xent - 1) / (2.9 - 1) * 10))  # ln(20) ~= 2.9
         self.send('action', move_json)
 
     # -----------

@@ -22,7 +22,7 @@ from hanabi_client import HanabiClient
 
 
 # Authenticate, login to the Hanabi Live WebSocket server, and run forever
-def main(name, model):
+def main(name, model, rl):
     # Load environment variables from the ".env" file
     dotenv.load_dotenv()
 
@@ -39,15 +39,6 @@ def main(name, model):
               '"false" in the ".env" file')
         sys.exit(1)
 
-    # username = os.getenv('HANABI_USERNAME')
-    # if username == '':
-    #     print('error: "HANABI_USERNAME" is blank in the ".env" file')
-    #     sys.exit(1)
-
-    # password = os.getenv('HANABI_PASSWORD')
-    # if password == '':
-    #     print('error: "HANABI_PASSWORD" is blank in the ".env" file')
-    #     sys.exit(1)
     username = name
     password = name
 
@@ -71,8 +62,10 @@ def main(name, model):
     resp = requests.post(
         url,
         {
-            'username': 'test-0',
-            'password': 'test-0',
+            'username': name,
+            'password': name,
+            # 'username': 'test-0',
+            # 'password': 'test-0',
             # This is normally the version of the JavaScript client,
             # but it will also accept "bot" as a valid version
             'version': 'bot',
@@ -96,13 +89,14 @@ def main(name, model):
         print(resp.headers)
         sys.exit(1)
 
-    HanabiClient(ws_url, cookie, model)
+    HanabiClient(ws_url, cookie, model, rl)
 
 
 models = {
     "Bot-Rank": "/private/home/hengyuan/HanabiModels/rl1_fix_o/HIDE_ACTION1_PRED0.25_MIN_T0.01_MAX_T0.1_SEEDb/model0.pthw",
     "Bot-BR": "/private/home/hengyuan/HanabiModels/br1_aux_big_cont/HIDE_ACTION1_RNN_HID_DIM768_ACT_\
 BASE_EPS0.1_SEEDa/model0.pthw",
+    "Bot-Sup": "/checkpoint/lep/hanabi/supervised/min_score_0_bs2048/checkpoint-22-19.732.pt"
     # "Bot-Discard": "/private/home/hengyuan/HanabiModels/discard_oldest_1/HIDE_ACTION1_MIN_CR0.1_NUM_CR1_SEEDa/model0.pthw"
 }
 
@@ -112,4 +106,8 @@ if __name__ == '__main__':
 
     parser.add_argument("--name", type=str, default="Bot-BR")
     args = parser.parse_args()
-    main(args.name, models[args.name])
+    if args.name == "Bot-Sup":
+        rl = False
+    else:
+        rl = True
+    main(args.name, models[args.name], rl)

@@ -202,7 +202,8 @@ class HleGameState:
 
         if success:
             finish_color = self.firework_pile.add_to_pile(card)
-            self.hint_tokens += finish_color
+            if self.hint_tokens < self.hle_game.max_information_tokens():
+                self.hint_tokens += finish_color
             if finish_color and self.verbose:
                 print('one color is finished, get back 1 hint token')
         else:
