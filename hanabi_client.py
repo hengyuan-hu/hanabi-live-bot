@@ -388,9 +388,9 @@ class HanabiClient:
         move_json = state.convert_move(move)
         move_json['tableID'] = table_id
         print('$$$ json move: %s $$$' % move_json)
-        if xent > 0:
-            print('$$$Xent:', xent)
-            time.sleep(max(0, (xent - 1) / (2.9 - 1) * 10))  # ln(20) ~= 2.9
+        # if xent > 0:
+        #     print('$$$Xent:', xent)
+        #     time.sleep(max(0, (xent - 1) / (2.9 - 1) * 10))  # ln(20) ~= 2.9
         self.send('action', move_json)
 
     # -----------
