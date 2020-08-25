@@ -10,6 +10,7 @@ import random
 # Imports (3rd-party)
 import websocket
 import torch
+import numpy as np
 
 # Imports (local application)
 from constants import ACTION
@@ -32,14 +33,17 @@ class HanabiClient:
         self.games = {}
 
         # model loading and related
+        # NOTE: last_action feature is not implemented AT ALL!!!
         self.rl = rl
         if rl:
-            self.agent, _ = load_agent(model_path, {"device": "cpu", "vdn": False})
+            self.agent, cfgs = load_agent(model_path, {"device": "cpu", "vdn": False})
+            assert cfgs["hide_action"]
         else:
             self.agent = supervised_model.SupervisedAgent("cpu", 1024, 21, 1)
             self.agent.load_state_dict(torch.load(model_path))
         self.rnn_hids = {}
         self.next_moves = {}
+        self.scores = []
 
         # Initialize the Hanabi Live command handlers (for the lobby)
         self.commandHandlers['welcome'] = self.welcome
@@ -372,9 +376,11 @@ class HanabiClient:
         })
 
         # Delete the game state for the game to free up memory
+        self.scores.append(self.games[data['tableID']].get_score())
         self.games.pop(data['tableID'])
         self.rnn_hids.pop(data['tableID'])
         self.next_moves.pop(data['tableID'])
+        print("finished %d games, mean score: %.2f" % (len(self.scores), np.mean(self.scores)))
 
     # ------------
     # AI functions

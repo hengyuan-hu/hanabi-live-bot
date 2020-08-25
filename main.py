@@ -93,11 +93,14 @@ def main(name, model, rl):
 
 
 models = {
-    "Bot-Rank": "/private/home/hengyuan/HanabiModels/rl1_fix_o/HIDE_ACTION1_PRED0.25_MIN_T0.01_MAX_T0.1_SEEDb/model0.pthw",
-    "Bot-BR": "/private/home/hengyuan/HanabiModels/br1_aux_big_cont/HIDE_ACTION1_RNN_HID_DIM768_ACT_\
-BASE_EPS0.1_SEEDa/model0.pthw",
-    "Bot-Sup": "/checkpoint/lep/hanabi/supervised/min_score_0_bs2048/checkpoint-22-19.732.pt",
+    "Bot-Rank": "/private/home/hengyuan/HanabiModels/rl2_lstm1024/HIDE_ACTION1_RNN_HID_DIM1024_LSTM_LAYER2_SEEDc/model4.pthw",
+    "Bot-Color": "/private/home/hengyuan/HanabiModels/cr4_cont/HIDE_ACTION1_MIN_CR0.25_NUM_CR1_SEEDa/model0.pthw",
+    "Bot-BR": "/private/home/hengyuan/HanabiModels/br1_aux_big_cont/HIDE_ACTION1_RNN_HID_DIM768_ACT_BASE_EPS0.1_SEEDa/model0.pthw",
+    "Bot-Clone": "/checkpoint/lep/hanabi/supervised/min_score_0_bs2048/checkpoint-22-19.732.pt",
     "Bot-CH": "/private/home/bcui/OneHanabi/rl/heirarchy_br/10_agents_boltzmann_random_2/heir_8/model_epoch1540.pthw",
+    "Bot-Clone-BR": "/checkpoint/lep/hanabi/supervised/br_2p/hide_action_1/RNN_HID_DIM768_HIDE_ACTION1_SEEDa/model0.pthw",
+    "Bot-Clone-BRF": "/checkpoint/lep/hanabi/supervised/br_2p/bza_other/RNN_HID_DIM768_BZA_OTHER1_SEEDa/model0.pthw",
+    "Bot-IQL": "/private/home/hengyuan/HanabiModels/iql1/HIDE_ACTION1_METHODiql_SEEDa/model0.pthw",
     # "Bot-Discard": "/private/home/hengyuan/HanabiModels/discard_oldest_1/HIDE_ACTION1_MIN_CR0.1_NUM_CR1_SEEDa/model0.pthw"
 }
 
@@ -106,9 +109,13 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="")
 
     parser.add_argument("--name", type=str, default="Bot-BR")
+    parser.add_argument("--login_name", type=str, default=None)
     args = parser.parse_args()
-    if args.name == "Bot-Sup":
+    if args.name == "Bot-Clone":
         rl = False
     else:
         rl = True
-    main(args.name, models[args.name], rl)
+
+    if args.login_name is None:
+        args.login_name = args.name
+    main(args.login_name, models[args.name], rl)
