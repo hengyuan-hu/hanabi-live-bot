@@ -3,18 +3,18 @@
 # An example reference bot for the Hanabi Live website
 # Written by Zamiel
 
-# The "dotenv" module does not work in Python 2
-import sys
-if sys.version_info < (3, 0):
-    print('This script requires Python 3.x.')
-    sys.exit(1)
+# # The "dotenv" module does not work in Python 2
+# import sys
+# if sys.version_info < (3, 0):
+#     print('This script requires Python 3.x.')
+#     sys.exit(1)
 
 # Imports (standard library)
 import os
 import argparse
 
-# Imports (3rd-party)
-import dotenv
+# # Imports (3rd-party)
+# import dotenv
 import requests
 
 # Imports (local application)
@@ -23,22 +23,23 @@ from hanabi_client import HanabiClient
 
 # Authenticate, login to the Hanabi Live WebSocket server, and run forever
 def main(name, model, rl):
-    # Load environment variables from the ".env" file
-    dotenv.load_dotenv()
+    # # Load environment variables from the ".env" file
+    # dotenv.load_dotenv()
 
-    use_localhost = os.getenv('USE_LOCALHOST')
-    if use_localhost == '':
-        print('error: "USE_LOCALHOST" is blank in the ".env" file')
-        sys.exit(1)
-    if use_localhost == 'true':
-        use_localhost = True
-    elif use_localhost == 'false':
-        use_localhost = False
-    else:
-        print('error: "USE_LOCALHOST" should be set to either "true" or '
-              '"false" in the ".env" file')
-        sys.exit(1)
+    # use_localhost = os.getenv('USE_LOCALHOST')
+    # if use_localhost == '':
+    #     print('error: "USE_LOCALHOST" is blank in the ".env" file')
+    #     sys.exit(1)
+    # if use_localhost == 'true':
+    #     use_localhost = True
+    # elif use_localhost == 'false':
+    #     use_localhost = False
+    # else:
+    #     print('error: "USE_LOCALHOST" should be set to either "true" or '
+    #           '"false" in the ".env" file')
+    #     sys.exit(1)
 
+    use_localhost = False
     username = name
     password = name
 
@@ -101,6 +102,7 @@ models = {
     "Bot-Clone-BR": "/checkpoint/lep/hanabi/supervised/br_2p/hide_action_1/RNN_HID_DIM768_HIDE_ACTION1_SEEDa/model0.pthw",
     "Bot-Clone-BRF": "/checkpoint/lep/hanabi/supervised/br_2p/bza_other/RNN_HID_DIM768_BZA_OTHER1_SEEDa/model0.pthw",
     "Bot-IQL": "/private/home/hengyuan/HanabiModels/iql1/HIDE_ACTION1_METHODiql_SEEDa/model0.pthw",
+    "Bot-3": "/private/home/hengyuan/HanabiModels/rl2_p25_large/HIDE_ACTION1_NUM_PLAYER3_RNN_HID_DIM1024_LSTM_LAYER1_SEEDa/model0.pthw",
     # "Bot-Discard": "/private/home/hengyuan/HanabiModels/discard_oldest_1/HIDE_ACTION1_MIN_CR0.1_NUM_CR1_SEEDa/model0.pthw"
 }
 

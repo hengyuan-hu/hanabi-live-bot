@@ -1,11 +1,15 @@
 import os
 import sys
 
-import numpy as np
-
 root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.append(os.path.join(root, 'build'))
-import py_hanabi_lib as hle
+sys.path.append(os.path.join(root, 'pyhanabi'))
+from set_path import append_sys_path
+append_sys_path()
+
+import numpy as np
+import torch
+import rela
+import hanalearn as hle
 
 from constants import *
 
@@ -149,6 +153,11 @@ class FireworkPile:
 
 class HleGameState:
     def __init__(self, players, my_name, verbose):
+        self.num_player = len(players)
+        self.players = players
+        self.my_index = [i for i, name in enumerate(players) if name == my_name][0]
+        print("Create state for %d player game" % self.num_player)
+
         self.hle_game = hle.HanabiGame({'players': str(len(players))})
 
         self.hint_tokens = self.hle_game.max_information_tokens()
@@ -156,10 +165,6 @@ class HleGameState:
         self.deck_size = self.hle_game.max_deck_size()
         self.num_step = 0
         self.verbose = verbose
-
-        self.num_player = len(players)
-        self.players = players
-        self.my_index = [i for i, name in enumerate(players) if name == my_name][0]
 
         self.hands = [
             Hand(
@@ -311,6 +316,16 @@ class HleGameState:
             legal_moves[-1] = 1
         return legal_moves
 
+    def observe(self):
+        obs_vec = self.get_observation_in_vector()
+        obs = torch.tensor(obs_vec, dtype=torch.float32)
+        priv_s = obs[125:].unsqueeze(0)
+        publ_s = obs[125 * self.num_player:].unsqueeze(0)
+
+        legal_move_vec = self.get_legal_moves_in_vector()
+        legal_move = torch.tensor(legal_move_vec, dtype=torch.float32)
+        return priv_s, publ_s, legal_move
+
     def convert_move(self, hle_move):
         type_map = {
             hle.MoveType.Play: ACTION.PLAY,
@@ -361,16 +376,29 @@ class HleGameState:
         for i in range(len(self.hands[self.my_index])):
             moves.append(hle.HanabiMove(hle.MoveType.Play, i, 1, -1, -1))
 
-        if self.hint_tokens > 0:
+        if self.hint_tokens == 0:
+            return moves
+
+        for i, hand in enumerate(self.hands):
             possible_hint_color = []
             possible_hint_rank = []
-            for card in self.hands[1 - self.my_index].cards:
+            if i == self.my_index:
+                continue
+
+            for card in hand.cards:
+                player_offset = (i - self.my_index) % self.num_player
                 if card.color not in possible_hint_color:
                     possible_hint_color.append(card.color)
-                    moves.append(hle.HanabiMove(hle.MoveType.RevealColor, -1, 1, card.color, -1))
+                    move = hle.HanabiMove(
+                        hle.MoveType.RevealColor, -1, player_offset, card.color, -1
+                    )
+                    moves.append(move)
                 if card.rank not in possible_hint_rank:
                     possible_hint_rank.append(card.rank)
-                    moves.append(hle.HanabiMove(hle.MoveType.RevealRank, -1, 1, -1, card.rank))
+                    move = hle.HanabiMove(
+                        hle.MoveType.RevealRank, -1, player_offset, -1, card.rank
+                    )
+                    moves.append(move)
 
         return moves
 

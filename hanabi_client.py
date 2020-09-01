@@ -13,7 +13,6 @@ import torch
 import numpy as np
 
 # Imports (local application)
-from constants import ACTION
 from game_state import *
 
 root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -312,12 +311,7 @@ class HanabiClient:
             print('#STEP: %d, %d, my index: %d, my turn? %s'
                   % (state.num_step, data['num'], state.my_index, state.is_my_turn()))
             print('Bot observing')
-            obs_vec = state.get_observation_in_vector()
-            legal_move_vec = state.get_legal_moves_in_vector()
-            obs = torch.tensor(obs_vec, dtype=torch.float32)
-            priv_s = obs[125:].unsqueeze(0)
-            publ_s = obs[250:].unsqueeze(0)
-            legal_move = torch.tensor(legal_move_vec, dtype=torch.float32)
+            priv_s, publ_s, legal_move = state.observe()
 
             if self.rl:
                 with torch.no_grad():

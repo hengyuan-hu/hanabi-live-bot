@@ -2,7 +2,7 @@
 # https://github.com/Zamiell/hanabi-live/blob/master/src/constants.go
 
 
-class ACTION():
+class ACTION:
     PLAY = 0
     DISCARD = 1
     COLOR_HINT = 2
