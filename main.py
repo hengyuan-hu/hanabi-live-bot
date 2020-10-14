@@ -94,8 +94,10 @@ def main(name, model, rl):
 
 
 models = {
-    "Bot-HA": "/private/home/hengyuan/HanabiModels/aamas1/HIDE_ACTION1_RNN_HID_DIM1024_LSTM_LAYER2_SEEDa/model0.pthw",
-    "Bot-RESCALE": "/private/home/hengyuan/HanabiModels/aamas2/HIDE_ACTION1_RNN_HID_DIM1024_LSTM_LAYER2_RESCALE_EPS1_SEEDa/model0.pthw",
+    # "Bot-RESCALE": "/private/home/hengyuan/HanabiModels/aamas2/HIDE_ACTION1_RNN_HID_DIM1024_LSTM_LAYER2_RESCALE_EPS1_SEEDa/model0.pthw",
+    "Bot-Baseline": "/private/home/hengyuan/HanabiModels/aamas1/HIDE_ACTION0_RNN_HID_DIM1024_LSTM_LAYER2_SEEDa/model0.pthw",
+    "Bot-HideAction": "/private/home/hengyuan/HanabiModels/aamas1/HIDE_ACTION1_RNN_HID_DIM1024_LSTM_LAYER2_SEEDa/model0.pthw",
+    "Bot-Boltzmann": "/private/home/hengyuan/HanabiModels/aamas3_boltzmann/HIDE_ACTION0_RESCALE0_RNN_HID_DIM1024_LSTM_LAYER2_SEEDa/model0.pthw",
     "Bot-Rank": "/private/home/hengyuan/HanabiModels/rl2_lstm1024/HIDE_ACTION1_RNN_HID_DIM1024_LSTM_LAYER2_SEEDc/model4.pthw",
     "Bot-Color": "/private/home/hengyuan/HanabiModels/cr4_cont/HIDE_ACTION1_MIN_CR0.25_NUM_CR1_SEEDa/model0.pthw",
     "Bot-BR": "/private/home/hengyuan/HanabiModels/br1_aux_big_cont/HIDE_ACTION1_RNN_HID_DIM768_ACT_BASE_EPS0.1_SEEDa/model0.pthw",

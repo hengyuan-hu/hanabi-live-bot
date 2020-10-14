@@ -36,10 +36,12 @@ class HanabiClient:
         self.rl = rl
         if rl:
             self.agent, cfgs = load_agent(model_path, {"device": "cpu", "vdn": False})
-            assert cfgs["hide_action"]
+            self.hide_action = cfgs["hide_action"]
         else:
             self.agent = supervised_model.SupervisedAgent("cpu", 1024, 21, 1)
             self.agent.load_state_dict(torch.load(model_path))
+            # NOTE: this assumes every clone bot does not hide_action
+            self.hide_action = False
         self.rnn_hids = {}
         self.next_moves = {}
         self.scores = []
@@ -215,28 +217,14 @@ class HanabiClient:
         # at the table
 
         # Make a new game state and store it on the "games" dictionary
-        state = HleGameState(data['names'], self.username, True)
+        start_player = data['options']['startingPlayer']
+        state = HleGameState(data['names'], self.username, start_player, self.hide_action, True)
         self.games[data['tableID']] = state
 
         print('>>>>> init for table %s called <<<<<' % data['tableID'])
         self.rnn_hids[data['tableID']] = self.agent.get_h0(1)
         self.next_moves[data['tableID']] = None
-        print('<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<')
-
-        # # Initialize the hands for each player (an array of cards)
-        # for i in range(len(state.players)):
-        #     state.hands.append([])
-
-        # Initialize the play stacks
-        '''
-        This is hard coded to 5 because there 5 suits in a no variant game
-        Hanabi Live supports variants that have 3, 4, and 6 suits
-        TODO This code should compare "data['variant']" to the "variants.json"
-        file in order to determine the correct amount of suits
-        https://raw.githubusercontent.com/Zamiell/hanabi-live/master/public/js/src/data/variants.json
-        '''
-        # for i in range(5):
-        #     state.play_stacks.append([])
+        print('====================================')
 
         # At this point, the JavaScript client would have enough information to
         # load and display the game UI; for our purposes, we do not need to
@@ -265,8 +253,8 @@ class HanabiClient:
         if data['type'] == 'text':
             return
 
-        print('-------------begin: handle_action:-------------')
-        pprint.pprint(data)
+        # print('-------------begin: handle_action:-------------')
+        # pprint.pprint(data)
 
         # Local variables
         state = self.games[table_id]
@@ -277,7 +265,7 @@ class HanabiClient:
         elif data['type'] == 'draw':
             # Add the newly drawn card to the player's hand
             state.draw(
-                data['who'], data['suit'], data['rank'], data['order']
+                data['who'], data['cheat_suit'], data['cheat_rank'], data['order']
             )
         elif data['type'] == 'play' or (data['type'] == 'discard' and data['failed']):
             # success play, and failed play (encoded as discard)
@@ -307,15 +295,15 @@ class HanabiClient:
             if data['who'] == -1:
                 return
 
-            assert state.num_step == data['num']
-            print('#STEP: %d, %d, my index: %d, my turn? %s'
-                  % (state.num_step, data['num'], state.my_index, state.is_my_turn()))
-            print('Bot observing')
+            num_step = data['num']
+            print('-----STEP %d: %d, my index: %d, my turn? %s-----'
+                  % (num_step, data['num'], state.my_index, state.is_my_turn()))
+
             priv_s, publ_s, legal_move = state.observe()
 
             if self.rl:
                 with torch.no_grad():
-                    adv, self.rnn_hids[table_id], _ = self.agent.online_net.act(
+                    adv, self.rnn_hids[table_id] = self.agent.online_net.act(
                         priv_s, publ_s, self.rnn_hids[table_id]
                     )
                 if state.is_my_turn():
@@ -349,7 +337,7 @@ class HanabiClient:
         elif data['type'] == 'status':
             assert state.get_score() == data['score']
             assert state.hint_tokens == data['clues']
-        print('===============================================')
+        # print('===============================================')
 
     def your_turn(self, data):
         # The "yourTurn" command is only sent when it is our turn
@@ -383,11 +371,11 @@ class HanabiClient:
     def decide_action(self, table_id):
         state = self.games[table_id]
         move, xent = self.next_moves[table_id]
-        print("$$$ MODEL ACTION: %s $$$" % (move.to_string()))
+        print("\tMODEL ACTION: %s" % (move.to_string()))
 
         move_json = state.convert_move(move)
         move_json['tableID'] = table_id
-        print('$$$ json move: %s $$$' % move_json)
+        # print('$$$ json move: %s $$$' % move_json)
         # if xent > 0:
         #     print('$$$Xent:', xent)
         #     time.sleep(max(0, (xent - 1) / (2.9 - 1) * 10))  # ln(20) ~= 2.9
