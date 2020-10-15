@@ -103,7 +103,7 @@ models = {
     "Bot-BR": "/private/home/hengyuan/HanabiModels/br1_aux_big_cont/HIDE_ACTION1_RNN_HID_DIM768_ACT_BASE_EPS0.1_SEEDa/model0.pthw",
     "Bot-Clone": "/checkpoint/lep/hanabi/supervised/min_score_0_bs2048/checkpoint-22-19.732.pt",
     "Bot-CH": "/private/home/bcui/OneHanabi/rl/heirarchy_br/10_agents_boltzmann_random_2/heir_8/model_epoch1540.pthw",
-    "Bot-Clone-BR": "/checkpoint/lep/hanabi/supervised/br_2p/hide_action_1/RNN_HID_DIM768_HIDE_ACTION1_SEEDa/model0.pthw",
+    "Bot-Clone-BR": "/checkpoint/lep/hanabi/supervised/br_2p/RNN_HID_DIM1024_SEEDa/model0.pthw",
     "Bot-Clone-BRF": "/checkpoint/lep/hanabi/supervised/br_2p/bza_other/RNN_HID_DIM768_BZA_OTHER1_SEEDa/model0.pthw",
     "Bot-IQL": "/private/home/hengyuan/HanabiModels/iql1/HIDE_ACTION1_METHODiql_SEEDa/model0.pthw",
     "Bot-3": "/private/home/hengyuan/HanabiModels/rl2_p25_large/HIDE_ACTION1_NUM_PLAYER3_RNN_HID_DIM1024_LSTM_LAYER1_SEEDa/model0.pthw",
