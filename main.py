@@ -108,7 +108,11 @@ models = {
     "Bot-IQL": "/private/home/hengyuan/HanabiModels/iql1/HIDE_ACTION1_METHODiql_SEEDa/model0.pthw",
     "Bot-3": "/private/home/hengyuan/HanabiModels/rl2_p25_large/HIDE_ACTION1_NUM_PLAYER3_RNN_HID_DIM1024_LSTM_LAYER1_SEEDa/model0.pthw",
     # "Bot-Discard": "/private/home/hengyuan/HanabiModels/discard_oldest_1/HIDE_ACTION1_MIN_CR0.1_NUM_CR1_SEEDa/model0.pthw"
-    "Bot-OffBelief": "/private/home/hengyuan/HanabiModels/off_belief3/METHODiql_MULTI_STEP1_SEEDa/model0.pthw"
+    "Bot-OffBelief": "/private/home/hengyuan/HanabiModels/off_belief3/METHODiql_MULTI_STEP1_SEEDa/model0.pthw",
+    "Bot-OffBelief2": "/private/home/hengyuan/HanabiModels/new_off_belief6/HIDE_ACTION0_OFF_BELIEF1_RNN_HID_DIM512_SEEDa/model0.pthw",
+    "Bot-L2-OB": "/private/home/hengyuan/HanabiModels/new_l2_off_belief1/OFF_BELIEF1_LOAD1_BELIEF_SEEDa/model_epoch50.pthw",
+    "Bot-L3-OB": "/private/home/hengyuan/HanabiModels/new_l3_off_belief1/OFF_BELIEF1_LOAD1_BELIEF_LOAD1_SEEDa/model_epoch50.pthw",
+    "Bot-L2-OB_FNL": "/private/home/hengyuan/HanabiModels/new_l2_off_belief1/OFF_BELIEF1_LOAD1_BELIEF_SEEDa/model0.pthw",
 }
 
 
