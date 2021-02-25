@@ -18,8 +18,7 @@ from game_state import *
 root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(os.path.join(root, 'pyhanabi'))
 import r2d2
-import supervised_model
-from utils import load_agent
+from utils import load_agent, load_supervised_agent
 
 
 class HanabiClient:
@@ -38,8 +37,7 @@ class HanabiClient:
             self.agent, cfgs = load_agent(model_path, {"device": "cpu", "vdn": False})
             self.hide_action = cfgs["hide_action"]
         else:
-            self.agent = supervised_model.SupervisedAgent("cpu", 1024, 21, 1)
-            self.agent.load_state_dict(torch.load(model_path))
+            self.agent = load_supervised_agent(model_path, "cpu")
             # NOTE: this assumes every clone bot does not hide_action
             self.hide_action = False
         self.rnn_hids = {}
