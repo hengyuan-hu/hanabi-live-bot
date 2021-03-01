@@ -109,11 +109,14 @@ models = {
     "Bot-3": "/private/home/hengyuan/HanabiModels/rl2_p25_large/HIDE_ACTION1_NUM_PLAYER3_RNN_HID_DIM1024_LSTM_LAYER1_SEEDa/model0.pthw",
     # "Bot-Discard": "/private/home/hengyuan/HanabiModels/discard_oldest_1/HIDE_ACTION1_MIN_CR0.1_NUM_CR1_SEEDa/model0.pthw"
     # "Bot-OffBelief": "/private/home/hengyuan/HanabiModels/off_belief3/METHODiql_MULTI_STEP1_SEEDa/model0.pthw",
-    "Bot-L1-OB": "/private/home/hengyuan/HanabiModels/new_off_belief6/HIDE_ACTION0_OFF_BELIEF1_RNN_HID_DIM512_SEEDa/model0.pthw",
+    "Bot-OBL1": "/private/home/hengyuan/HanabiModels/new_off_belief6/HIDE_ACTION0_OFF_BELIEF1_RNN_HID_DIM512_SEEDa/model0.pthw",
     "Bot-L2-OB": "/private/home/hengyuan/HanabiModels/new_l2_off_belief1/OFF_BELIEF1_LOAD1_BELIEF_SEEDa/model_epoch50.pthw",
     "Bot-L3-OB": "/private/home/hengyuan/HanabiModels/new_l3_off_belief1/OFF_BELIEF1_LOAD1_BELIEF_LOAD1_SEEDa/model0.pthw",
     "Bot-L4-OB": "/private/home/hengyuan/HanabiModels/new_l4_off_belief1/OFF_BELIEF1_LOAD1_BELIEF_LOAD1_SEEDa/model_epoch50.pthw",
     "Bot-L2-OB_FNL": "/private/home/hengyuan/HanabiModels/new_l2_off_belief1/OFF_BELIEF1_LOAD1_BELIEF_SEEDa/model0.pthw",
+    # "Bot-OBL1": "/private/home/hengyuan/HanabiModels/icml_run2_OBL1/OFF_BELIEF1_SHUFFLE_COLOR0_BZA0_BELIEF_a/model0.pthw",
+    "Bot-New-OBL1": "/private/home/hengyuan/HanabiModels/icml_run3_OBL1/OFF_BELIEF1_SHUFFLE_COLOR0_BZA1_BELIEF_a/model0.pthw",
+    "Bot-New2-OBL1": "/private/home/hengyuan/HanabiModels/icml_run3_OBL1/OFF_BELIEF1_SHUFFLE_COLOR0_BZA0_BELIEF_a/model0.pthw",
 }
 
 
