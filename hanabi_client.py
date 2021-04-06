@@ -107,7 +107,6 @@ class HanabiClient:
                 return
         else:
             pass
-            # print('debug: ignoring command "' + command + '"')
 
     def websocket_error(self, ws, error):
         print('Encountered a WebSocket error:', error)
@@ -219,8 +218,11 @@ class HanabiClient:
         state = HleGameState(data['names'], self.username, start_player, self.hide_action, True)
         self.games[data['tableID']] = state
 
-        print('>>>>> init for table %s called <<<<<' % data['tableID'])
-        self.rnn_hids[data['tableID']] = self.agent.get_h0(1)
+        hid = self.agent.get_h0(1)
+        if self.rl:
+            for k, v in hid.items():
+                hid[k] = v.unsqueeze(0)
+        self.rnn_hids[data['tableID']] = hid
         self.next_moves[data['tableID']] = None
         print('====================================')
 
@@ -250,9 +252,6 @@ class HanabiClient:
 
         if data['type'] == 'text':
             return
-
-        # print('-------------begin: handle_action:-------------')
-        # pprint.pprint(data)
 
         # Local variables
         state = self.games[table_id]
@@ -369,11 +368,12 @@ class HanabiClient:
     def decide_action(self, table_id):
         state = self.games[table_id]
         move, xent = self.next_moves[table_id]
-        print("\tMODEL ACTION: %s" % (move.to_string()))
+        print("MODEL ACTION: %s" % (move.to_string()))
 
         move_json = state.convert_move(move)
         move_json['tableID'] = table_id
         # print('$$$ json move: %s $$$' % move_json)
+        time.sleep(2)
         # if xent > 0:
         #     print('$$$Xent:', xent)
         #     time.sleep(max(0, (xent - 1) / (2.9 - 1) * 10))  # ln(20) ~= 2.9
@@ -394,4 +394,3 @@ class HanabiClient:
         if not isinstance(data, dict):
             data = {}
         self.ws.send(command + ' ' + json.dumps(data))
-        # print('debug: sent command "' + command + '"')

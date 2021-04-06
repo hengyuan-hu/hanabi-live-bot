@@ -1,20 +1,8 @@
-#!/usr/bin/env python
-
-# An example reference bot for the Hanabi Live website
-# Written by Zamiel
-
-# # The "dotenv" module does not work in Python 2
-# import sys
-# if sys.version_info < (3, 0):
-#     print('This script requires Python 3.x.')
-#     sys.exit(1)
-
 # Imports (standard library)
 import os
 import argparse
 
-# # Imports (3rd-party)
-# import dotenv
+# Imports (3rd-party)
 import requests
 
 # Imports (local application)
@@ -23,22 +11,6 @@ from hanabi_client import HanabiClient
 
 # Authenticate, login to the Hanabi Live WebSocket server, and run forever
 def main(name, model, rl):
-    # # Load environment variables from the ".env" file
-    # dotenv.load_dotenv()
-
-    # use_localhost = os.getenv('USE_LOCALHOST')
-    # if use_localhost == '':
-    #     print('error: "USE_LOCALHOST" is blank in the ".env" file')
-    #     sys.exit(1)
-    # if use_localhost == 'true':
-    #     use_localhost = True
-    # elif use_localhost == 'false':
-    #     use_localhost = False
-    # else:
-    #     print('error: "USE_LOCALHOST" should be set to either "true" or '
-    #           '"false" in the ".env" file')
-    #     sys.exit(1)
-
     use_localhost = False
     username = name
     password = name
@@ -94,7 +66,6 @@ def main(name, model, rl):
 
 
 models = {
-    # "Bot-RESCALE": "/private/home/hengyuan/HanabiModels/aamas2/HIDE_ACTION1_RNN_HID_DIM1024_LSTM_LAYER2_RESCALE_EPS1_SEEDa/model0.pthw",
     "Bot-Baseline": "/private/home/hengyuan/HanabiModels/aamas1/HIDE_ACTION0_RNN_HID_DIM1024_LSTM_LAYER2_SEEDa/model0.pthw",
     "Bot-HideAction": "/private/home/hengyuan/HanabiModels/aamas1/HIDE_ACTION1_RNN_HID_DIM1024_LSTM_LAYER2_SEEDa/model0.pthw",
     "Bot-Boltzmann": "/private/home/hengyuan/HanabiModels/aamas3_boltzmann/HIDE_ACTION0_RESCALE0_RNN_HID_DIM1024_LSTM_LAYER2_SEEDa/model0.pthw",
@@ -102,22 +73,21 @@ models = {
     "Bot-Color": "/private/home/hengyuan/HanabiModels/cr4_cont/HIDE_ACTION1_MIN_CR0.25_NUM_CR1_SEEDa/model0.pthw",
     "Bot-BR": "/private/home/hengyuan/HanabiModels/br1_aux_big_cont/HIDE_ACTION1_RNN_HID_DIM768_ACT_BASE_EPS0.1_SEEDa/model0.pthw",
     "Bot-Clone": "/checkpoint/lep/hanabi/supervised/min_score_0_bs2048/checkpoint-22-19.732.pt",
-    "Bot-Clone3": "/private/home/hengyuan/HanabiModels/clone_bot/player3/checkpoint-7-13.129.pt",
+    "Bot-Clone3": "/checkpoint/dwu/hanabi/clonebot/run3ponlinecolorshuf-0/checkpoint-48-17.547.pt",
     "Bot-CH": "/private/home/bcui/OneHanabi/rl/heirarchy_br/10_agents_boltzmann_random_2/heir_8/model_epoch1540.pthw",
     "Bot-Clone-BR": "/checkpoint/lep/hanabi/supervised/br_2p/RNN_HID_DIM1024_SEEDa/model0.pthw",
     "Bot-Clone-BRF": "/checkpoint/lep/hanabi/supervised/br_2p/bza_other/RNN_HID_DIM768_BZA_OTHER1_SEEDa/model0.pthw",
     "Bot-IQL": "/private/home/hengyuan/HanabiModels/iql1/HIDE_ACTION1_METHODiql_SEEDa/model0.pthw",
     "Bot-3": "/private/home/hengyuan/HanabiModels/rl2_p25_large/HIDE_ACTION1_NUM_PLAYER3_RNN_HID_DIM1024_LSTM_LAYER1_SEEDa/model0.pthw",
-    # "Bot-Discard": "/private/home/hengyuan/HanabiModels/discard_oldest_1/HIDE_ACTION1_MIN_CR0.1_NUM_CR1_SEEDa/model0.pthw"
-    # "Bot-OffBelief": "/private/home/hengyuan/HanabiModels/off_belief3/METHODiql_MULTI_STEP1_SEEDa/model0.pthw",
     "Bot-OBL1": "/private/home/hengyuan/HanabiModels/new_off_belief6/HIDE_ACTION0_OFF_BELIEF1_RNN_HID_DIM512_SEEDa/model0.pthw",
     "Bot-L2-OB": "/private/home/hengyuan/HanabiModels/new_l2_off_belief1/OFF_BELIEF1_LOAD1_BELIEF_SEEDa/model_epoch50.pthw",
     "Bot-L3-OB": "/private/home/hengyuan/HanabiModels/new_l3_off_belief1/OFF_BELIEF1_LOAD1_BELIEF_LOAD1_SEEDa/model0.pthw",
     "Bot-L4-OB": "/private/home/hengyuan/HanabiModels/new_l4_off_belief1/OFF_BELIEF1_LOAD1_BELIEF_LOAD1_SEEDa/model_epoch50.pthw",
     "Bot-L2-OB_FNL": "/private/home/hengyuan/HanabiModels/new_l2_off_belief1/OFF_BELIEF1_LOAD1_BELIEF_SEEDa/model0.pthw",
-    # "Bot-OBL1": "/private/home/hengyuan/HanabiModels/icml_run2_OBL1/OFF_BELIEF1_SHUFFLE_COLOR0_BZA0_BELIEF_a/model0.pthw",
     "Bot-New-OBL1": "/private/home/hengyuan/HanabiModels/icml_run3_OBL1/OFF_BELIEF1_SHUFFLE_COLOR0_BZA1_BELIEF_a/model0.pthw",
     "Bot-New2-OBL1": "/private/home/hengyuan/HanabiModels/icml_run3_OBL1/OFF_BELIEF1_SHUFFLE_COLOR0_BZA0_BELIEF_a/model0.pthw",
+    "Bot-BC-RL": "/checkpoint/hengyuan/hanabi_benchmark/rl_bc1/NETlstm_PRED0.25_CLONE_WEIGHT0.1_CLONE_T0.1_SEEDa/model0.pthw",
+    "Bot-BCRL3": "/checkpoint/hengyuan/hanabi_benchmark/rl_bc_p3/NETlstm_NUM_PLAYER3_PRED0.25_CLONE_WEIGHT0.1_CLONE_T0.1_SEEDa/model0.pthw",
 }
 
 
