@@ -67,7 +67,7 @@ class Card:
         if rank != -1:
             rank -= 1
         assert self.check_card(color, rank)
-        self.hle_card = hle.HanabiCard(color, rank)
+        self.hle_card = hle.HanabiCard(color, rank, order)
         self.order = order
 
     def __repr__(self):
